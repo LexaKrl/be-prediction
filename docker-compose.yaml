@@ -11,6 +11,38 @@ services:
     volumes:
       - rabbit_data:/rabbit/data
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_DB=finance
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PORT=5432
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  finance-predictor:
+    build: .
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: sh -c "sleep 5 && python main.py"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - DB_HOST=postgres
+    volumes:
+      - ./models:/app/models
+    restart: unless-stopped
 
 volumes:
   rabbit_data:
+  postgres_data:
